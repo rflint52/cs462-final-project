@@ -11,8 +11,8 @@
 
 
 void part1(); //Serial matrix-matrix multiplication. This part is finished.
-void part2(int rank); //Use parallel algorithm discussed in class (i.e. Lecture 13 & 14 in the OneNote) to do the multiplication
-void part3(int rank); //Use Cannon's algorithm (also in Lecture 13 & 14 in the OneNote) to do the multiplication
+void part2(int rank, int size); //Use parallel algorithm discussed in class (i.e. Lecture 13 & 14 in the OneNote) to do the multiplication
+void part3(int rank, int size); //Use Cannon's algorithm (also in Lecture 13 & 14 in the OneNote) to do the multiplication
 
 
 //Take two arrays and compute the dot product
@@ -26,8 +26,8 @@ int main(int argc, char **argv) {
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
 
 	if (rank == 0) part1();
-	//part2(rank);
-	//part3(rank);
+	//part2(rank, size);
+	//part3(rank, size);
 
 	MPI_Finalize();
 }
