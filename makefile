@@ -1,12 +1,12 @@
-MPICC = mpicc
-MPIFLAGS = #Not sure why we'd need flags
+CC = mpicc
+MPIFLAGS = -lm
 EXECUTABLES = project
 
 .SUFFIXES: .c.o
-	$(MPICC) $(MPIFLAGS) -c $^
+	$(CC) $(MPIFLAGS) -c $^
 
 project: project.o
-	$(MPICC) $(MPIFLAGS) -o $@ $^
+	$(CC) $(MPIFLAGS) -o $@ $^
 
 .PHONY: clean
 clean:

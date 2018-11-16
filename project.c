@@ -6,7 +6,8 @@
 #include <stdlib.h>
 #include <sys/time.h>
 #include <mpi.h>
-#define DEBUG 0
+#include <math.h>
+#define DEBUG 1
 #define SIZE 128
 
 
@@ -15,8 +16,8 @@ void part2(int rank, int size); //Use parallel algorithm discussed in class (i.e
 void part3(int rank, int size); //Use Cannon's algorithm (also in Lecture 13 & 14 in the OneNote) to do the multiplication
 
 
-//Take two arrays and compute the dot product
-double dot(double a[], double b[]);
+//Take two arrays of size 'size' and compute the dot product
+double dot(double a[], double b[], int size);
 
 int main(int argc, char **argv) {
 
@@ -25,8 +26,13 @@ int main(int argc, char **argv) {
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-	if (rank == 0) part1();
-	//part2(rank, size);
+	if (size != 4 && size != 16 && size != 64 && size != 256) {
+		fprintf(stderr, "Error: Number of processors must be one of 4, 16, 64, 256\n");
+		MPI_Abort(MPI_COMM_WORLD, 1);
+	}
+
+	//if (rank == 0) part1();
+	part2(rank, size);
 	//part3(rank, size);
 
 	MPI_Finalize();
@@ -95,7 +101,7 @@ void part1() {
 	//Do the computations
 	for (i = 0; i < SIZE; i++) {
 		for (j = 0; j < SIZE; j++) {
-			result[i][j] = dot(matrixA[i], matrixBTranspose[j]);
+			result[i][j] = dot(matrixA[i], matrixBTranspose[j], SIZE);
 		}
 	}
 
@@ -123,13 +129,47 @@ void part1() {
 	free(t2);
 }
 
-double dot(double a[], double b[]) {
+void part2(int rank, int size) {
+	//Use parallel algorithm discussed in class (i.e. Lecture 13 & 14 in the OneNote) to do the multiplication
+	double **initSubBlockA, **initSubBlockB;
+	int sbSideLen = SIZE / sqrt(size);
+
+	double entry;
+	int i, j;
+
+	if (DEBUG) printf("Sub block side length: %d\n", sbSideLen);
+
+	//Set up initial mappings. Each processor owns a (SIZE / sqrt(size) ) * (SIZE / sqrt(size) ) non-overlapping sub-block of matrices A and
+	//B, respectively
+	initSubBlockA = (double **) malloc( sizeof(double *) * sbSideLen);
+	initSubBlockB = (double **) malloc( sizeof(double *) * sbSideLen);
+
+	entry = 0;
+
+	for (i = 0; i < sbSidenLen; i++) {
+		initSubBlockA[i] = (double *) malloc( sizeof(double) * sbSideLen);
+		initSubBlockB[i] = (double *) malloc( sizeof(double) * sbSideLen);
+		entry = 0.001 * i * SIZE * rank + 0.001; //This isn't going to work...
+		for (j = 0; j < sbSideLen; j++) {
+			initSubBlockA[i][j] = entry;
+			initSubBlockB[i][j] = entry * 2.0;
+			entry += 0.001;
+		}
+	}
+
+
+
+
+
+
+}
+double dot(double a[], double b[], int size) {
 	double rv;
 	int i;
 
 	rv = 0;
 
-	for (i = 0; i < SIZE; i++) rv += (a[i] * b[i]);
+	for (i = 0; i < size; i++) rv += (a[i] * b[i]);
 
 	return rv;
 }
