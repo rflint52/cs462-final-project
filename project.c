@@ -32,6 +32,7 @@ int main(int argc, char **argv) {
 	}
 
 	if (rank == 0) part1();
+	MPI_Barrier(MPI_COMM_WORLD);
 	part2(rank, size);
 	//part3(rank, size);
 
@@ -144,17 +145,17 @@ void part2(int rank, int size) {
 	initSubBlockA = (double **) malloc( sizeof(double *) * sbSideLen);
 	initSubBlockB = (double **) malloc( sizeof(double *) * sbSideLen);
 
-	entry = 0.001 + (sbSideLen * 128 * rank * 0.001) + (0.001 * ( (rank * sbSideLen) % sbSideLen) ); //Starting point for the current processor
+	entry = 0.001 + (sbSideLen * SIZE * rank * 0.001) + (0.001 * ( (rank * sbSideLen) % sbSideLen) ); //Starting point for the current processor
 
 	for (i = 0; i < sbSideLen; i++) {
 		initSubBlockA[i] = (double *) malloc( sizeof(double) * sbSideLen);
 		initSubBlockB[i] = (double *) malloc( sizeof(double) * sbSideLen);
-		entry = 0.001 * i * SIZE * rank + 0.001; //This isn't going to work...
 		for (j = 0; j < sbSideLen; j++) {
 			initSubBlockA[i][j] = entry;
 			initSubBlockB[i][j] = entry * 2.0;
 			entry += 0.001;
 		}
+		entry += (SIZE * 0.001) - (0.001 * sbSideLen);
 	}
 
 	if (DEBUG) {
@@ -162,7 +163,7 @@ void part2(int rank, int size) {
 		
 		for (i = 0; i < sbSideLen; i++) {
 			for (j = 0; j < sbSideLen; j++) {
-				printf("\t%lf", initSubBlockA[i][j]);
+				printf("\t (%d) %lf", rank, initSubBlockA[i][j]);
 			}
 			printf("\n");
 		}
