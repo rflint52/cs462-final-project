@@ -8,7 +8,7 @@
 #include <mpi.h>
 #include <math.h>
 #define DEBUG 1
-#define SIZE 128
+#define SIZE 4
 
 
 void part1(); //Serial matrix-matrix multiplication. This part is finished.
@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
 		MPI_Abort(MPI_COMM_WORLD, 1);
 	}
 
-	//if (rank == 0) part1();
+	if (rank == 0) part1();
 	part2(rank, size);
 	//part3(rank, size);
 
@@ -144,7 +144,7 @@ void part2(int rank, int size) {
 	initSubBlockA = (double **) malloc( sizeof(double *) * sbSideLen);
 	initSubBlockB = (double **) malloc( sizeof(double *) * sbSideLen);
 
-	entry = 0.001 + (sbSideLen * 128 * rank * 0.001) + ( (0.001 * rank * sbSideLen) % sbSideLen); //Starting point for the current processor
+	entry = 0.001 + (sbSideLen * 128 * rank * 0.001) + (0.001 * ( (rank * sbSideLen) % sbSideLen) ); //Starting point for the current processor
 
 	for (i = 0; i < sbSideLen; i++) {
 		initSubBlockA[i] = (double *) malloc( sizeof(double) * sbSideLen);
@@ -157,11 +157,16 @@ void part2(int rank, int size) {
 		}
 	}
 
-
-
-
-
-
+	if (DEBUG) {
+		printf("Processor %d's subblock of matrix A\n", rank);
+		
+		for (i = 0; i < sbSideLen; i++) {
+			for (j = 0; j < sbSideLen; j++) {
+				printf("\t%lf", initSubBlockA[i][j]);
+			}
+			printf("\n");
+		}
+	}
 }
 double dot(double a[], double b[], int size) {
 	double rv;
