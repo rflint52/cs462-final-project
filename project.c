@@ -231,11 +231,14 @@ void part3(int rank, int size)
 	}
 
 	//ok weve generated and broadcast out eveything lets do the multiplication
-	row = rank / sqrt(size);
-	col = rank % sqrt(size);
+	row = rank / (int) sqrt(size);
+	col = rank % (int) sqrt(size);
 
+	MPI_Comm_split(MPI_COMM_WORLD, row, rank, &row_comm);
+	MPI_Comm_split(MPI_COMM_WORLD, col, rank, &col_comm);
 
-
+	MPI_Sendrecv_replace(a, block_size, MPI_DOUBLE, (row + col) % (int)sqrt(size), 0, row, 0, row_comm, &stat);
+	MPI_Sendrecv_replace(b, block_size, MPI_DOUBLE, (row + col) % (int)sqrt(size), 0, col, 0, col_comm, &stat);
 
 
 
