@@ -132,40 +132,52 @@ void part1() {
 
 void part2(int rank, int size) {
 	//Use parallel algorithm discussed in class (i.e. Lecture 13 & 14 in the OneNote) to do the multiplication
+	double **blockMatrixA, **blockMatrixB;
 	double **initSubBlockA, **initSubBlockB;
 	int sbSideLen = SIZE / sqrt(size);
 
 	double entry;
-	int i, j;
+	int i, j, k, l;
 
-	if (DEBUG) printf("Sub block side length: %d\n", sbSideLen);
-
-	//Set up initial mappings. Each processor owns a (SIZE / sqrt(size) ) * (SIZE / sqrt(size) ) non-overlapping sub-block of matrices A and
-	//B, respectively
-	initSubBlockA = (double **) malloc( sizeof(double *) * sbSideLen);
-	initSubBlockB = (double **) malloc( sizeof(double *) * sbSideLen);
-
-	entry = 0.001 + (sbSideLen * SIZE * rank * 0.001) + (0.001 * ( (rank * sbSideLen) % sbSideLen) ); //Starting point for the current processor
-
-	for (i = 0; i < sbSideLen; i++) {
-		initSubBlockA[i] = (double *) malloc( sizeof(double) * sbSideLen);
-		initSubBlockB[i] = (double *) malloc( sizeof(double) * sbSideLen);
-		for (j = 0; j < sbSideLen; j++) {
-			initSubBlockA[i][j] = entry;
-			initSubBlockB[i][j] = entry * 2.0;
-			entry += 0.001;
-		}
-		entry += (SIZE * 0.001) - (0.001 * sbSideLen);
-	}
-
-	if (DEBUG) {
-		printf("Processor %d's subblock of matrix A\n", rank);
+	//Generate the entire matrices block by block on rank 0, then split up work as neccessary
+	if (rank == 0) {
+		blockMatrixA = (double **) malloc(sizeof(double *) * sbSideLen);
+		blockMatrixB = (double **) malloc(sizeof(double *) * sbSideLen);
 
 		for (i = 0; i < sbSideLen; i++) {
 			for (j = 0; j < sbSideLen; j++) {
-				printf("\t (%d) %lf", rank, initSubBlockA[i][j]);
+				blockMatrixA[i] = (double *) malloc( sizeof(double *) * sbSideLen);
+				blockMatrixB[i] = (double *) malloc( sizeof(double *) * sbSideLen);
 			}
-			printf("\n");
+		}
+
+		entry = 0.001;
+
+		for (i = 0; i < sbSideLen; i++) {
+			for (j = 0; j < sbSideLen; j++) {
+				for (k = 0; k < sbSideLen; k++) {
+
+					for (l = 0; l < sbSideLen; l++) {
+						blockMatrixA[k][l] = 0;
+						blockMatrixB[k][l] = 0;
+					}
+
+					for (l = 0; l < sbSideLen; l++) {
+						blockMatrixA[k][l] = (k * sbSideLen + l) * 0.001 + 0.001;
+						blockMatrixB[k][l] = blockMatrixA[k][l] * 2;
+					}
+				}
+				//One block generated, send it to the proper processor (i * sbSideLen + j)
+				if (DEBUG) {
+					printf("Printing matrix A subblock %d\n", i * sbSideLen + j);
+					for (k = 0; k < sbSideLen; k++) {
+						for (l = 0; l < sbSideLen; l++) {
+							printf("\t%lf", blockMatrixA[k][l]);
+						}
+						printf("\n");
+					}
+				}
+			}
 		}
 	}
 }
