@@ -176,6 +176,14 @@ void part2(int rank, int size) {
 						}
 						printf("\n");
 					}
+
+					printf("Printing matrix B subblock %d\n", i * sbSideLen * j);
+					for (k = 0; k < sbSideLen; k++) {
+						for (l = 0; l < sbSideLen; l++) {
+							printf("\t%lf", blockMatrixB[k][l]);
+						}
+						printf("\n");
+					}
 				}
 			}
 		}
