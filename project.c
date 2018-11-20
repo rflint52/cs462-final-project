@@ -1,7 +1,7 @@
 /* Authors: Ryan Flint, Chris Dean
    COSC 462 Final Project
 
-   Synopsis: ... */
+Synopsis: ... */
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
@@ -160,7 +160,7 @@ void part2(int rank, int size) {
 
 	if (DEBUG) {
 		printf("Processor %d's subblock of matrix A\n", rank);
-		
+
 		for (i = 0; i < sbSideLen; i++) {
 			for (j = 0; j < sbSideLen; j++) {
 				printf("\t (%d) %lf", rank, initSubBlockA[i][j]);
@@ -169,6 +169,78 @@ void part2(int rank, int size) {
 		}
 	}
 }
+
+void part3(int rank, int size)
+{
+	int i;
+	int j;
+	int block_size;
+	int num_blocks;
+	int block_length;
+	int row;
+	int col;
+	double ** mat_a;
+	double ** mat_b;
+	double * a;
+	double * b;
+	MPI_Status stat;
+	MPI_Comm row_comm;
+	MPI_Comm col_comm;
+
+
+	block_size = SIZE * SIZE / size;
+	block_length = sqrt(block_size);
+
+	if(rank == 0)
+	{
+		//were generating the matrix block by block here
+		mat_a = malloc(sizeof(double *) * SIZE);
+		mat_b = malloc(sizeof(double *) * SIZE);
+		for(i = 0; i < SIZE; i++)
+		{
+			mat_a[i] = malloc(sizeof(double) * SIZE * SIZE / size);
+			mat_b[i] = malloc(sizeof(double) * SIZE * SIZE / size);
+			for(j = 0; j < block_size; j++)
+			{
+				mat_a[i][j] = ((double) rand()) / RAND_MAX * 2 - 1;
+				mat_b[i][j] = ((double) rand()) / RAND_MAX * 2 - 1;
+			}
+			if(i != 0)
+			{
+				MPI_Send(mat_a[i], block_size, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
+				MPI_Send(mat_b[i], block_size, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
+				free(mat_a[i]);
+				free(mat_b[i]);
+			}
+			else
+			{
+				a = mat_a[i];
+				b = mat_b[i];
+			}
+		}
+		free(mat_a);
+		free(mat_b);
+
+	}
+	else
+	{
+		a = malloc(sizeof(double) * block_size);
+		b = malloc(sizeof(double) * block_size);
+		MPI_Recv(a, block_size, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, &stat);
+		MPI_Recv(b, block_size, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, &stat);
+	}
+
+	//ok weve generated and broadcast out eveything lets do the multiplication
+	row = rank / sqrt(size);
+	col = rank % sqrt(size);
+
+
+
+
+
+
+}
+
 double dot(double a[], double b[], int size) {
 	double rv;
 	int i;
