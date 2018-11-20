@@ -163,7 +163,7 @@ void part2(int rank, int size) {
 					}
 
 					for (l = 0; l < sbSideLen; l++) {
-						blockMatrixA[k][l] = (k * sbSideLen + l) * 0.001 + 0.001;
+						blockMatrixA[k][l] = ( (i * sbSideLen + j) * 0.001) + ( (k * sbSideLen + l) * 0.001) + 0.001;
 						blockMatrixB[k][l] = blockMatrixA[k][l] * 2;
 					}
 				}
