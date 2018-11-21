@@ -133,9 +133,10 @@ void part1() {
 void part2(int rank, int size) {
 	//Use parallel algorithm discussed in class (i.e. Lecture 13 & 14 in the OneNote) to do the multiplication
 	double **blockMatrixA, **blockMatrixB;
-	double **initSubBlockA, **initSubBlockB;
+	double **recvSubBlockA, **recvSubBlockB;
 	int sbSideLen = SIZE / sqrt(size);
 	int origMatSLen = SIZE / sbSideLen;
+	MPI_Request req;
 
 	double startingPoint, entry;
 	int i, j, k, l;
@@ -165,8 +166,11 @@ void part2(int rank, int size) {
 						entry += 0.001;
 					}
 					entry += (SIZE * 0.001) - (sbSideLen * 0.001);
+
+					//Send this row of the sublock to the proper processor (i * origMatSLen + j)
+					MPI_Send(blockMatrixA[k], sbSideLen, MPI_DOUBLE, (i * origMatSLen + j), 0, MPI_COMM_WORLD);
+					MPI_Send(blockMatrixB[k], sbSideLen, MPI_DOUBLE, (i * origMatSLen + j), 0, MPI_COMM_WORLD);
 				}
-				//One block generated, send it to the proper processor (i * sbSideLen + j)
 				if (DEBUG) {
 					printf("Printing matrix A subblock %d\n", i * origMatSLen + j);
 					for (k = 0; k < sbSideLen; k++) {
@@ -175,17 +179,24 @@ void part2(int rank, int size) {
 						}
 						printf("\n");
 					}
-#if 0
-					printf("Printing matrix B subblock %d\n", i * sbSideLen * j);
-					for (k = 0; k < sbSideLen; k++) {
-						for (l = 0; l < sbSideLen; l++) {
-							printf("\t%lf", blockMatrixB[k][l]);
-						}
-						printf("\n");
-					}
-#endif
 				}
 			}
+		}
+	} else { //If rank != 0
+		recvSubBlockA = (double **) malloc( sizeof(double *) * sbSideLen);
+		recvSubBlockB = (double **) malloc( sizeof(double *) * sbSideLen);
+		for (i = 0; i < sbSideLen; i++) {
+			recvSubBlockA[i] = (double *) malloc( sizeof(double) * sbSideLen);
+			recvSubBlockB[i] = (double *) malloc( sizeof(double) * sbSideLen);
+			MPI_Recv(recvSubBlockA[i], sbSideLen, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+			if (DEBUG) printf("Got subblock %d from processor 0\n", rank);
+			for (j = 0; i < sbSideLen; j++) {
+				printf("\t%lf", recvSubBlockA[i][j]);
+			}
+			printf("\n");
+
+			MPI_Recv(recvSubBlockB[i], sbSideLen, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 		}
 	}
 }
