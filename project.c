@@ -168,8 +168,10 @@ void part2(int rank, int size) {
 					entry += (SIZE * 0.001) - (sbSideLen * 0.001);
 
 					//Send this row of the sublock to the proper processor (i * origMatSLen + j)
-					MPI_Send(blockMatrixA[k], sbSideLen, MPI_DOUBLE, (i * origMatSLen + j), 0, MPI_COMM_WORLD);
-					MPI_Send(blockMatrixB[k], sbSideLen, MPI_DOUBLE, (i * origMatSLen + j), 0, MPI_COMM_WORLD);
+					if ( (i * origMatSLen + j) != 0 ) {
+						MPI_Send(blockMatrixA[k], sbSideLen, MPI_DOUBLE, (i * origMatSLen + j), 0, MPI_COMM_WORLD);
+						MPI_Send(blockMatrixB[k], sbSideLen, MPI_DOUBLE, (i * origMatSLen + j), 0, MPI_COMM_WORLD);
+					}
 				}
 				if (DEBUG) {
 					printf("Printing matrix A subblock %d\n", i * origMatSLen + j);
