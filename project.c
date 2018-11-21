@@ -8,8 +8,8 @@ Synopsis: ... */
 #include <mpi.h>
 #include <math.h>
 #define DEBUG 1
-#define SIZE 8
 #define DEBUG_RANK 3
+#define SIZE 8
 
 
 void part1(); //Serial matrix-matrix multiplication. This part is finished.
@@ -35,8 +35,8 @@ int main(int argc, char **argv) {
 	if (rank == 0) part1();
 	MPI_Barrier(MPI_COMM_WORLD);
 	part2(rank, size);
+	MPI_Barrier(MPI_COMM_WORLD);
 	//part3(rank, size);
-
 	MPI_Finalize();
 }
 
@@ -134,13 +134,28 @@ void part1() {
 void part2(int rank, int size) {
 	//Use parallel algorithm discussed in class (i.e. Lecture 13 & 14 in the OneNote) to do the multiplication
 	double **blockMatrixA, **blockMatrixB;
-	double **recvSubBlockA, **recvSubBlockB;
+	double **recvSubBlockA, **recvSubBlockB, **localResultC;
+	double **subBTranspose;
+
+	//Remember to free all this stuff when done
+
 	int sbSideLen = SIZE / sqrt(size);
-	int origMatSLen = SIZE / sbSideLen;
-	MPI_Request req;
+	int origMatSLen = sqrt(size);
 
 	double startingPoint, entry;
 	int i, j, k, l;
+
+	recvSubBlockA = (double **) malloc( sizeof(double *) * sbSideLen);
+	recvSubBlockB = (double **) malloc( sizeof(double *) * sbSideLen);
+	localResultC = (double **) malloc( sizeof(double *) * sbSideLen);
+	subBTranspose = (double **) malloc( sizeof(double *) * sbSideLen);
+	for (i = 0; i < sbSideLen; i++) {
+		recvSubBlockA[i] = (double *) malloc( sizeof(double) * sbSideLen);
+		recvSubBlockB[i] = (double *) malloc( sizeof(double) * sbSideLen);
+		localResultC[i] = (double *) malloc( sizeof(double) * sbSideLen);
+		subBTranspose[i] = (double *) malloc( sizeof(double) * sbSideLen);
+	}
+		
 
 	//Generate the entire matrices block by block on rank 0, then split up work as neccessary
 	if (rank == 0) {
@@ -164,6 +179,13 @@ void part2(int rank, int size) {
 					for (l = 0; l < sbSideLen; l++) {
 						blockMatrixA[k][l] = entry;
 						blockMatrixB[k][l] = entry * 2.0;
+
+						//Set up rank 0's sub-block
+						if ( (i * origMatSLen + j) == 0 ) {
+							recvSubBlockA[k][l] = entry;
+							recvSubBlockB[k][l] = entry * 2.0;
+						}
+
 						entry += 0.001;
 					}
 					entry += (SIZE * 0.001) - (sbSideLen * 0.001);
@@ -186,12 +208,15 @@ void part2(int rank, int size) {
 				}
 			}
 		}
-	} else { //If rank != 0
-		recvSubBlockA = (double **) malloc( sizeof(double *) * sbSideLen);
-		recvSubBlockB = (double **) malloc( sizeof(double *) * sbSideLen);
+
 		for (i = 0; i < sbSideLen; i++) {
-			recvSubBlockA[i] = (double *) malloc( sizeof(double) * sbSideLen);
-			recvSubBlockB[i] = (double *) malloc( sizeof(double) * sbSideLen);
+			free(blockMatrixA[i]);
+			free(blockMatrixB[i]);
+		}
+		free(blockMatrixA);
+		free(blockMatrixB);
+	} else { //If rank != 0, get the subblocks from rank 0 (perhaps move this stuff to ***)
+		for (i = 0; i < sbSideLen; i++) {
 			MPI_Recv(recvSubBlockA[i], sbSideLen, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 			if (DEBUG && rank == DEBUG_RANK) {
 				printf("Rank %d got a subblock row\n", rank);
@@ -202,6 +227,41 @@ void part2(int rank, int size) {
 			MPI_Recv(recvSubBlockB[i], sbSideLen, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 		}
 	}
+
+	//Now we're ready for repeated local matrix-matrix multiplication. This repeats sqrt(size) (i.e. origMatSLen) times
+	
+	for (i = 0; i < sbSideLen; i++) {
+		for (j = 0; j < sbSideLen; j++) {
+			localResultC[i][j] = 0;
+		}
+	}
+	
+	for (i = 0; i < 1; i++) {
+
+		//*** ?????
+		
+		//First, compute the local matrix-matrix product and add it to the product that already exists
+		
+		//Get transpose of subblock b to avoid recomputing columns of subblock b
+		for (j = 0; j < sbSideLen; j++) {
+			for (k = 0; k < sbSideLen; k++) {
+				subBTranspose[j][k] = recvSubBlockB[k][j];
+			}
+		}
+
+		//Do the multiplication
+		for (j = 0; j < sbSideLen; j++) {
+			for (k = 0; k < sbSideLen; k++) {
+				localResultC[j][k] += dot(recvSubBlockA[j], subBTranspose[k], sbSideLen);
+			}
+		}
+
+		//Now comes the gross part. Matrix A sublocks are transferred to processor p - 1 (wrapping around if needed?), and matrix b subblocks are transferred to processor
+		//p - origMatSLen (also wrapping when needed?) 
+
+
+	}
+
 }
 
 void part3(int rank, int size)
