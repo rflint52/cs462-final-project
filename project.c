@@ -9,6 +9,7 @@ Synopsis: ... */
 #include <math.h>
 #define DEBUG 1
 #define SIZE 8
+#define DEBUG_RANK 3
 
 
 void part1(); //Serial matrix-matrix multiplication. This part is finished.
@@ -169,6 +170,7 @@ void part2(int rank, int size) {
 
 					//Send this row of the sublock to the proper processor (i * origMatSLen + j)
 					if ( (i * origMatSLen + j) != 0 ) {
+						if (DEBUG) printf("Rank 0 doing a send\n");
 						MPI_Send(blockMatrixA[k], sbSideLen, MPI_DOUBLE, (i * origMatSLen + j), 0, MPI_COMM_WORLD);
 						MPI_Send(blockMatrixB[k], sbSideLen, MPI_DOUBLE, (i * origMatSLen + j), 0, MPI_COMM_WORLD);
 					}
@@ -191,9 +193,11 @@ void part2(int rank, int size) {
 			recvSubBlockA[i] = (double *) malloc( sizeof(double) * sbSideLen);
 			recvSubBlockB[i] = (double *) malloc( sizeof(double) * sbSideLen);
 			MPI_Recv(recvSubBlockA[i], sbSideLen, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-			printf("Rank %d got a subblock row\n", rank);
-			for (j = 0; j < sbSideLen; j++) printf("\t%lf", recvSubBlockA[i][j]);
-
+			if (DEBUG && rank == DEBUG_RANK) {
+				printf("Rank %d got a subblock row\n", rank);
+				for (j = 0; j < sbSideLen; j++) printf("\t%lf", recvSubBlockA[i][j]);
+				printf("\n");
+			}
 
 			MPI_Recv(recvSubBlockB[i], sbSideLen, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 		}
