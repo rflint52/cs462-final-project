@@ -191,12 +191,9 @@ void part2(int rank, int size) {
 			recvSubBlockA[i] = (double *) malloc( sizeof(double) * sbSideLen);
 			recvSubBlockB[i] = (double *) malloc( sizeof(double) * sbSideLen);
 			MPI_Recv(recvSubBlockA[i], sbSideLen, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			printf("Rank %d got a subblock row\n", rank);
+			for (j = 0; j < sbSideLen; j++) printf("\t%lf", recvSubBlockA[i][j]);
 
-			if (DEBUG) printf("Got subblock %d from processor 0\n", rank);
-			for (j = 0; i < sbSideLen; j++) {
-				printf("\t%lf", recvSubBlockA[i][j]);
-			}
-			printf("\n");
 
 			MPI_Recv(recvSubBlockB[i], sbSideLen, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 		}
