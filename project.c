@@ -8,7 +8,7 @@ Synopsis: ... */
 #include <mpi.h>
 #include <math.h>
 #define DEBUG 1
-#define SIZE 4
+#define SIZE 8
 
 
 void part1(); //Serial matrix-matrix multiplication. This part is finished.
@@ -135,8 +135,9 @@ void part2(int rank, int size) {
 	double **blockMatrixA, **blockMatrixB;
 	double **initSubBlockA, **initSubBlockB;
 	int sbSideLen = SIZE / sqrt(size);
+	int origMatSLen = SIZE / sbSideLen;
 
-	double entry;
+	double startingPoint, entry;
 	int i, j, k, l;
 
 	//Generate the entire matrices block by block on rank 0, then split up work as neccessary
@@ -151,32 +152,30 @@ void part2(int rank, int size) {
 			}
 		}
 
-		entry = 0.001;
 
-		for (i = 0; i < sbSideLen; i++) {
-			for (j = 0; j < sbSideLen; j++) {
+		for (i = 0; i < origMatSLen; i++) {
+			startingPoint = ( i * sbSideLen * SIZE * 0.001) + 0.001;
+			for (j = 0; j < origMatSLen; j++) {
+				entry = startingPoint + (j * sbSideLen * 0.001);
 				for (k = 0; k < sbSideLen; k++) {
 
 					for (l = 0; l < sbSideLen; l++) {
-						blockMatrixA[k][l] = 0;
-						blockMatrixB[k][l] = 0;
+						blockMatrixA[k][l] = entry;
+						blockMatrixB[k][l] = entry * 2.0;
+						entry += 0.001;
 					}
-
-					for (l = 0; l < sbSideLen; l++) {
-						blockMatrixA[k][l] = ( (i * sbSideLen + j) * 0.001) + ( (k * sbSideLen + l) * 0.001) + 0.001;
-						blockMatrixB[k][l] = blockMatrixA[k][l] * 2;
-					}
+					entry += (SIZE * 0.001) - (sbSideLen * 0.001);
 				}
 				//One block generated, send it to the proper processor (i * sbSideLen + j)
 				if (DEBUG) {
-					printf("Printing matrix A subblock %d\n", i * sbSideLen + j);
+					printf("Printing matrix A subblock %d\n", i * origMatSLen + j);
 					for (k = 0; k < sbSideLen; k++) {
 						for (l = 0; l < sbSideLen; l++) {
 							printf("\t%lf", blockMatrixA[k][l]);
 						}
 						printf("\n");
 					}
-
+#if 0
 					printf("Printing matrix B subblock %d\n", i * sbSideLen * j);
 					for (k = 0; k < sbSideLen; k++) {
 						for (l = 0; l < sbSideLen; l++) {
@@ -184,6 +183,7 @@ void part2(int rank, int size) {
 						}
 						printf("\n");
 					}
+#endif
 				}
 			}
 		}
