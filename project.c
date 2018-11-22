@@ -145,6 +145,8 @@ void part2(int rank, int size) {
 	double startingPoint, entry;
 	int i, j, k, l;
 
+	int source, dest;
+
 	recvSubBlockA = (double **) malloc( sizeof(double *) * sbSideLen);
 	recvSubBlockB = (double **) malloc( sizeof(double *) * sbSideLen);
 	localResultC = (double **) malloc( sizeof(double *) * sbSideLen);
@@ -215,7 +217,7 @@ void part2(int rank, int size) {
 		}
 		free(blockMatrixA);
 		free(blockMatrixB);
-	} else { //If rank != 0, get the subblocks from rank 0 (perhaps move this stuff to ***)
+	} else { //If rank != 0, get the subblocks from rank 0 
 		for (i = 0; i < sbSideLen; i++) {
 			MPI_Recv(recvSubBlockA[i], sbSideLen, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 			if (DEBUG && rank == DEBUG_RANK) {
@@ -235,11 +237,17 @@ void part2(int rank, int size) {
 			localResultC[i][j] = 0;
 		}
 	}
-	
-	for (i = 0; i < 1; i++) {
 
-		//*** ?????
-		
+	//Set up source and destination processors
+	source = rank + 1;
+	dest = rank - 1;
+
+	if (source == size) source = 0;
+	if (dest == -1) dest = size - 1;
+	
+	//This will probably break...
+	for (i = 0; i < origMatSLen; i++) {
+
 		//First, compute the local matrix-matrix product and add it to the product that already exists
 		
 		//Get transpose of subblock b to avoid recomputing columns of subblock b
@@ -257,7 +265,15 @@ void part2(int rank, int size) {
 		}
 
 		//Now comes the gross part. Matrix A sublocks are transferred to processor p - 1 (wrapping around if needed?), and matrix b subblocks are transferred to processor
-		//p - origMatSLen (also wrapping when needed?) 
+		//p - origMatSLen (also wrapping when needed?)
+
+		for (j = 0; j < sbSideLen; j++) {
+			MPI_Send(recvSubBlockA[j], sbSideLen, MPI_DOUBLE, dest, 0, MPI_COMM_WORLD);
+			MPI_Send(recvSubBlockB[j], sbSideLen, MPI_DOUBLE, dest, 0, MPI_COMM_WORLD);
+
+			MPI_Recv(recvSubBlockA[j], sbSideLen, MPI_DOUBLE, source, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			MPI_Recv(recvSubBlockB[j], sbSideLen, MPI_DOUBLE, source, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		}
 
 
 	}
