@@ -8,7 +8,7 @@ Synopsis: ... */
 #include <mpi.h>
 #include <math.h>
 #define DEBUG 1
-#define DEBUG_RANK 3
+#define DEBUG_RANK 1
 #define SIZE 8
 
 
@@ -145,7 +145,8 @@ void part2(int rank, int size) {
 	double startingPoint, entry;
 	int i, j, k, l;
 
-	int source, dest;
+	int leftSource, leftDest;
+	int upSource, upDest;
 
 	recvSubBlockA = (double **) malloc( sizeof(double *) * sbSideLen);
 	recvSubBlockB = (double **) malloc( sizeof(double *) * sbSideLen);
@@ -194,12 +195,12 @@ void part2(int rank, int size) {
 
 					//Send this row of the sublock to the proper processor (i * origMatSLen + j)
 					if ( (i * origMatSLen + j) != 0 ) {
-						if (DEBUG) printf("Rank 0 doing a send\n");
+						//if (DEBUG) printf("Rank 0 doing a send\n");
 						MPI_Send(blockMatrixA[k], sbSideLen, MPI_DOUBLE, (i * origMatSLen + j), 0, MPI_COMM_WORLD);
 						MPI_Send(blockMatrixB[k], sbSideLen, MPI_DOUBLE, (i * origMatSLen + j), 0, MPI_COMM_WORLD);
 					}
 				}
-				if (DEBUG) {
+				if (DEBUG && 0) {
 					printf("Printing matrix A subblock %d\n", i * origMatSLen + j);
 					for (k = 0; k < sbSideLen; k++) {
 						for (l = 0; l < sbSideLen; l++) {
@@ -220,7 +221,7 @@ void part2(int rank, int size) {
 	} else { //If rank != 0, get the subblocks from rank 0 
 		for (i = 0; i < sbSideLen; i++) {
 			MPI_Recv(recvSubBlockA[i], sbSideLen, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-			if (DEBUG && rank == DEBUG_RANK) {
+			if (DEBUG && DEBUG_RANK == rank) {
 				printf("Rank %d got a subblock row\n", rank);
 				for (j = 0; j < sbSideLen; j++) printf("\t%lf", recvSubBlockA[i][j]);
 				printf("\n");
@@ -239,16 +240,44 @@ void part2(int rank, int size) {
 	}
 
 	//Set up source and destination processors
-	source = rank + 1;
-	dest = rank - 1;
+	leftSource = rank + 1;
+	leftDest = rank - 1;
+
+	upSource = rank + origMatSLen;
+	upDest = rank - origMatSLen;
 
 	if (source == size) source = 0;
 	if (dest == -1) dest = size - 1;
+
+	if (upSource > size) upSource = ;
+	if (upDest < 0) upDest =
 	
 	//This will probably break...
 	for (i = 0; i < origMatSLen; i++) {
 
 		//First, compute the local matrix-matrix product and add it to the product that already exists
+
+		if (DEBUG && DEBUG_RANK == rank) {
+
+			printf("[BEGIN] Beginning iteration %d...\n", i);
+
+			printf("Printing rank %d's received subblock A\n", rank);
+			for (j = 0; j < sbSideLen; j++) {
+				for (k = 0; k < sbSideLen; k++) {
+					printf("\t%lf", recvSubBlockA[j][k]);
+				}
+				printf("\n");
+			}
+
+			printf("Printing rank %d's received subblock B\n", rank);
+			for (j = 0; j < sbSideLen; j++) {
+				for (k = 0; k < sbSideLen; k++) {
+					printf("\t%lf", recvSubBlockB[j][k]);
+				}
+				printf("\n");
+			}
+		}
+
 		
 		//Get transpose of subblock b to avoid recomputing columns of subblock b
 		for (j = 0; j < sbSideLen; j++) {
@@ -268,15 +297,43 @@ void part2(int rank, int size) {
 		//p - origMatSLen (also wrapping when needed?)
 
 		for (j = 0; j < sbSideLen; j++) {
-			MPI_Send(recvSubBlockA[j], sbSideLen, MPI_DOUBLE, dest, 0, MPI_COMM_WORLD);
-			MPI_Send(recvSubBlockB[j], sbSideLen, MPI_DOUBLE, dest, 0, MPI_COMM_WORLD);
+			MPI_Send(recvSubBlockA[j], sbSideLen, MPI_DOUBLE, leftDest, 0, MPI_COMM_WORLD);
+			MPI_Send(recvSubBlockB[j], sbSideLen, MPI_DOUBLE, upDest, 0, MPI_COMM_WORLD);
 
-			MPI_Recv(recvSubBlockA[j], sbSideLen, MPI_DOUBLE, source, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-			MPI_Recv(recvSubBlockB[j], sbSideLen, MPI_DOUBLE, source, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			for (k = 0; k < sbSideLen; k++) {
+				recvSubBlockA[j][k] = 0;
+				recvSubBlockB[j][k] = 0;
+			}
+
+			MPI_Recv(recvSubBlockA[j], sbSideLen, MPI_DOUBLE, leftSource, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			MPI_Recv(recvSubBlockB[j], sbSideLen, MPI_DOUBLE, upSource, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 		}
-
-
 	}
+
+	//Take care of the last computation
+	for (j = 0; j < sbSideLen; j++) {
+		for (k = 0; k < sbSideLen; k++) {
+			subBTranspose[j][k] = recvSubBlockB[k][j];
+		}
+	}
+
+	//Do the multiplication
+	for (j = 0; j < sbSideLen; j++) {
+		for (k = 0; k < sbSideLen; k++) {
+			localResultC[j][k] += dot(recvSubBlockA[j], subBTranspose[k], sbSideLen);
+		}
+	}
+	if (DEBUG && rank == DEBUG_RANK) {
+		printf("Processor %d's final subblock result C\n", rank);
+		for (i = 0; i < sbSideLen; i++) {
+			for (j = 0; j < sbSideLen; j++) {
+				printf("\t%lf", localResultC[i][j]);
+			}
+			printf("\n");
+		}
+	}
+
+	//Get everything back on rank 0 at the end
 
 }
 
