@@ -8,7 +8,7 @@ Synopsis: ... */
 #include <mpi.h>
 #include <math.h>
 #define DEBUG 1
-#define DEBUG_RANK 1
+#define DEBUG_RANK 0
 #define SIZE 8
 
 
@@ -246,11 +246,18 @@ void part2(int rank, int size) {
 	upSource = rank + origMatSLen;
 	upDest = rank - origMatSLen;
 
-	if (source == size) source = 0;
-	if (dest == -1) dest = size - 1;
+	if (leftSource == size) leftSource = 0;
+	if (leftDest == -1) leftDest = size - 1;
 
-	if (upSource > size) upSource = ;
-	if (upDest < 0) upDest =
+	if (upSource >= size) upSource = rank % origMatSLen;
+	if (upDest < 0) upDest = rank + //something else goes here... figure it out
+
+	if (DEBUG) {
+		printf("origMatSLen: %d\n", origMatSLen);
+		printf("Processor %d's upsource = %d\n", rank, upSource);
+		printf("Processor %d's updest = %d\n", rank, upDest);
+		MPI_Barrier(MPI_COMM_WORLD);
+	}
 	
 	//This will probably break...
 	for (i = 0; i < origMatSLen; i++) {
