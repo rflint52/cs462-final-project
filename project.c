@@ -8,8 +8,8 @@ Synopsis: ... */
 #include <mpi.h>
 #include <math.h>
 #define DEBUG 1
-#define DEBUG_RANK 0
-#define SIZE 8
+#define DEBUG_RANK 1
+#define SIZE 4
 
 
 void part1(); //Serial matrix-matrix multiplication. This part is finished.
@@ -250,7 +250,7 @@ void part2(int rank, int size) {
 	if (leftDest == -1) leftDest = size - 1;
 
 	if (upSource >= size) upSource = rank % origMatSLen;
-	if (upDest < 0) upDest = rank + //something else goes here... figure it out
+	if (upDest < 0) upDest = (origMatSLen * origMatSLen) - origMatSLen + (rank % origMatSLen); 
 
 	if (DEBUG) {
 		printf("origMatSLen: %d\n", origMatSLen);
@@ -259,7 +259,6 @@ void part2(int rank, int size) {
 		MPI_Barrier(MPI_COMM_WORLD);
 	}
 	
-	//This will probably break...
 	for (i = 0; i < origMatSLen; i++) {
 
 		//First, compute the local matrix-matrix product and add it to the product that already exists
