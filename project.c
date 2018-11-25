@@ -19,6 +19,8 @@ void part3(int rank, int size); //Use Cannon's algorithm (also in Lecture 13 & 1
 
 //Take two arrays of size 'size' and compute the dot product
 double dot(double a[], double b[], int size);
+//Take two blocks and multiply them and add their result to c
+double mult_blocks(double * a, double * b, double * c, int block_size);
 
 int main(int argc, char **argv) {
 
@@ -158,7 +160,7 @@ void part2(int rank, int size) {
 		localResultC[i] = (double *) malloc( sizeof(double) * sbSideLen);
 		subBTranspose[i] = (double *) malloc( sizeof(double) * sbSideLen);
 	}
-		
+
 
 	//Generate the entire matrices block by block on rank 0, then split up work as neccessary
 	if (rank == 0) {
@@ -218,7 +220,7 @@ void part2(int rank, int size) {
 		}
 		free(blockMatrixA);
 		free(blockMatrixB);
-	} else { //If rank != 0, get the subblocks from rank 0 
+	} else { //If rank != 0, get the subblocks from rank 0
 		for (i = 0; i < sbSideLen; i++) {
 			MPI_Recv(recvSubBlockA[i], sbSideLen, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 			if (DEBUG && DEBUG_RANK == rank) {
@@ -232,7 +234,7 @@ void part2(int rank, int size) {
 	}
 
 	//Now we're ready for repeated local matrix-matrix multiplication. This repeats sqrt(size) (i.e. origMatSLen) times
-	
+
 	for (i = 0; i < sbSideLen; i++) {
 		for (j = 0; j < sbSideLen; j++) {
 			localResultC[i][j] = 0;
@@ -250,7 +252,7 @@ void part2(int rank, int size) {
 	if (leftDest == -1) leftDest = size - 1;
 
 	if (upSource >= size) upSource = rank % origMatSLen;
-	if (upDest < 0) upDest = (origMatSLen * origMatSLen) - origMatSLen + (rank % origMatSLen); 
+	if (upDest < 0) upDest = (origMatSLen * origMatSLen) - origMatSLen + (rank % origMatSLen);
 
 	if (DEBUG) {
 		printf("origMatSLen: %d\n", origMatSLen);
@@ -258,7 +260,7 @@ void part2(int rank, int size) {
 		printf("Processor %d's updest = %d\n", rank, upDest);
 		MPI_Barrier(MPI_COMM_WORLD);
 	}
-	
+
 	for (i = 0; i < origMatSLen; i++) {
 
 		//First, compute the local matrix-matrix product and add it to the product that already exists
@@ -284,7 +286,7 @@ void part2(int rank, int size) {
 			}
 		}
 
-		
+
 		//Get transpose of subblock b to avoid recomputing columns of subblock b
 		for (j = 0; j < sbSideLen; j++) {
 			for (k = 0; k < sbSideLen; k++) {
@@ -345,76 +347,137 @@ void part2(int rank, int size) {
 
 void part3(int rank, int size)
 {
+	int dims[2];
+	int periodic[2];
+	int coords[2];
 	int i;
+	int k;
 	int j;
+	int x;
+	int y;
 	int block_size;
 	int num_blocks;
 	int block_length;
+	int partitioned_length;
 	int row;
 	int col;
+	int left, right, up, down;
+	double entry;
 	double ** mat_a;
 	double ** mat_b;
 	double * a;
 	double * b;
+	double * c;
 	MPI_Status stat;
-	MPI_Comm row_comm;
+	MPI_Comm cart_comm;
 	MPI_Comm col_comm;
 
 
 	block_size = SIZE * SIZE / size;
 	block_length = sqrt(block_size);
+	partitioned_length = sqrt(size);
+
+	a = malloc(sizeof(double) * block_size);
+	b = malloc(sizeof(double) * block_size);
+	c = malloc(sizeof(double) * block_size);
 
 	if(rank == 0)
 	{
 		//were generating the matrix block by block here
+		//Generate the two matrices
 		mat_a = malloc(sizeof(double *) * SIZE);
 		mat_b = malloc(sizeof(double *) * SIZE);
-		for(i = 0; i < SIZE; i++)
+		entry = 0.001;
+		for (i = 0; i < SIZE; i++)
 		{
-			mat_a[i] = malloc(sizeof(double) * SIZE * SIZE / size);
-			mat_b[i] = malloc(sizeof(double) * SIZE * SIZE / size);
-			for(j = 0; j < block_size; j++)
+			mat_a[i] = malloc(sizeof(double) * SIZE);
+			mat_b[i] = malloc(sizeof(double) * SIZE);
+			for (j = 0; j < SIZE; j++) {
+				mat_a[i][j] = entry;
+				mat_b[i][j] = entry * 2.0;
+				entry += 0.001;
+			}
+		}
+		for(i = 1; i < size; i++)
+		{
+			x = i / partitioned_length;
+			y = i % partitioned_length;
+			for(j = 0; j < partitioned_length; j++)
 			{
-				mat_a[i][j] = ((double) rand()) / RAND_MAX * 2 - 1;
-				mat_b[i][j] = ((double) rand()) / RAND_MAX * 2 - 1;
+				for(k = 0; k < sqrt(size); k++)
+				{
+					a[j * partitioned_length + k] = mat_a[x * block_length + j][y*block_length + k];
+					b[j * partitioned_length + k] = mat_b[x * block_length + j][y*block_length + k];
+				}
 			}
 			if(i != 0)
 			{
-				MPI_Send(mat_a[i], block_size, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
-				MPI_Send(mat_b[i], block_size, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
-				free(mat_a[i]);
-				free(mat_b[i]);
-			}
-			else
-			{
-				a = mat_a[i];
-				b = mat_b[i];
+				MPI_Send(a, block_size, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
+				MPI_Send(b, block_size, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
 			}
 		}
-		free(mat_a);
-		free(mat_b);
-
+		for(j = 0; j < sqrt(size); j++)
+		{
+			for(k = 0; k < sqrt(size); k++)
+			{
+				a[j * partitioned_length + k] = mat_a[j][k];
+				b[j * partitioned_length + k] = mat_b[j][k];
+			}
+		}
 	}
 	else
 	{
-		a = malloc(sizeof(double) * block_size);
-		b = malloc(sizeof(double) * block_size);
 		MPI_Recv(a, block_size, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, &stat);
 		MPI_Recv(b, block_size, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, &stat);
 	}
 
-	//ok weve generated and broadcast out eveything lets do the multiplication
-	row = rank / (int) sqrt(size);
-	col = rank % (int) sqrt(size);
+	dims[0] = partitioned_length;
+	dims[1] = partitioned_length;
+	periodic[0] = 1;
+	periodic[1] = 1;
 
-	MPI_Comm_split(MPI_COMM_WORLD, row, rank, &row_comm);
-	MPI_Comm_split(MPI_COMM_WORLD, col, rank, &col_comm);
+	MPI_Cart_create(MPI_COMM_WORLD, 2, dims, periodic, 1, &cart_comm);
+	//get our rank and cvoordinates
+	MPI_Comm_rank(cart_comm, &rank);
+	MPI_Cart_coords(cart_comm, rank, 2, coords);
 
-	MPI_Sendrecv_replace(a, block_size, MPI_DOUBLE, (row + col) % (int)sqrt(size), 0, row, 0, row_comm, &stat);
-	MPI_Sendrecv_replace(b, block_size, MPI_DOUBLE, (row + col) % (int)sqrt(size), 0, col, 0, col_comm, &stat);
+	MPI_Cart_shift(cart_comm, 1, coords[0], &left, &right);
+	MPI_Cart_shift(cart_comm, 0, coords[1], &up, &down);
+	MPI_Sendrecv_replace(a, block_size, MPI_DOUBLE, left, 11, right, 11, cart_comm, MPI_STATUS_IGNORE);
+	MPI_Sendrecv_replace(b, block_size, MPI_DOUBLE, up, 11, down, 11, cart_comm, MPI_STATUS_IGNORE);
+
+	mult_blocks(a, b, c, block_length);
+
+	for(i=1;i<partitioned_length;i++)
+	{
+		MPI_Cart_shift(cart_comm, 1, 1, &left,&right);
+		MPI_Cart_shift(cart_comm, 0, 1, &up,&down);
+		MPI_Sendrecv_replace(a, block_size, MPI_DOUBLE, left, 11, right, 11, cart_comm, MPI_STATUS_IGNORE);
+		MPI_Sendrecv_replace(b, block_size, MPI_DOUBLE, up, 11, down, 11, cart_comm, MPI_STATUS_IGNORE);
+		mult_blocks(a, b, c, block_length);
+	}
+
+	//done now gather
 
 
+}
 
+double mult_blocks(double * a, double * b, double * c, int block_length)
+{
+	int i;
+	int j;
+	int k;
+
+	for(i = 0; i < block_length; i++)
+	{
+		for(j = 0; j < block_length; j++)
+		{
+			for(k = 0; k < block_length; k++)
+			{
+				c[i * block_length + j] += a[i * block_length + k] * b[k * block_length + j];
+			}
+		}
+	}
 }
 
 double dot(double a[], double b[], int size) {
