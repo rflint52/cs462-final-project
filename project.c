@@ -134,6 +134,7 @@ void part2(int rank, int size) {
 	double **blockMatrixA, **blockMatrixB;
 	double **recvSubBlockA, **recvSubBlockB, **localResultC;
 	double **subBTranspose;
+	double ***finalResult; //Array of matrices--There has to be a better way...
 
 	//Remember to free all this stuff when done
 
@@ -155,6 +156,16 @@ void part2(int rank, int size) {
 		recvSubBlockB[i] = (double *) malloc( sizeof(double) * sbSideLen);
 		localResultC[i] = (double *) malloc( sizeof(double) * sbSideLen);
 		subBTranspose[i] = (double *) malloc( sizeof(double) * sbSideLen);
+	}
+
+
+	//Array of matrices... This is disgusting...
+	finalResult = (double ***) malloc( sizeof(double ***) * size);
+	for (i = 0; i < size; i++) {
+		finalResult[i] = (double **) malloc( sizeof(double *) * sbSideLen);
+		for (j = 0; j < sbSideLen; j++) {
+			finalResult[i][j] = (double *) malloc( sizeof(double) * sbSideLen);
+		}
 	}
 
 
@@ -327,7 +338,34 @@ void part2(int rank, int size) {
 		}
 	}
 
+
+	////////////////////////////////////////////////////////////////////////////////////////////////
+
 	//Get everything back on rank 0 at the end
+	if (rank != 0) {
+		for (i = 0; i < sbSideLen; i++) {
+			MPI_Send(localResultC[i], sbSideLen, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+		}
+	} else {
+
+		//Get rank 0's block
+		for (i = 0; i < sbSideLen; i++) {
+			for (j = 0; j < sbSideLen; j++) {
+				finalResult[0][i][j] = localResultC[i][j];
+			}
+		}
+
+		//Get the blocks from the other ranks
+		for (i = 1; i < size; i++) {
+			for (j = 0; j < sbSideLen; j++) {
+				MPI_Recv(finalResult[i][j], sbSideLen, MPI_DOUBLE, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			}
+		}
+
+		//Print out the final result
+		
+	
+	}
 
 }
 
