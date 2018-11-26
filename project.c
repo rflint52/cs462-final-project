@@ -327,7 +327,7 @@ void part2(int rank, int size) {
 	//Do the multiplication
 	for (j = 0; j < sbSideLen; j++) {
 		for (k = 0; k < sbSideLen; k++) {
-			localResultC[j][k] += dot(recvSubBlockA[j], subBTranspose[k], sbSideLen);
+			//if (rank != 0) localResultC[j][k] += dot(recvSubBlockA[j], subBTranspose[k], sbSideLen);
 		}
 	}
 	if (DEBUG) {
