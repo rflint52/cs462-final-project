@@ -219,7 +219,7 @@ void part2(int rank, int size) {
 	} else { //If rank != 0, get the subblocks from rank 0
 		for (i = 0; i < sbSideLen; i++) {
 			MPI_Recv(recvSubBlockA[i], sbSideLen, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-			if (DEBUG && DEBUG_RANK == rank && 0) {
+			if (DEBUG && DEBUG_RANK == rank ) {
 				printf("Rank %d got a subblock row\n", rank);
 				for (j = 0; j < sbSideLen; j++) printf("\t%lf", recvSubBlockA[i][j]);
 				printf("\n");
@@ -244,16 +244,19 @@ void part2(int rank, int size) {
 	upSource = rank + origMatSLen;
 	upDest = rank - origMatSLen;
 
-	if (leftSource == size) leftSource = 0;
-	if (leftDest == -1) leftDest = size - 1;
+	if (leftSource % origMatSLen == 0) leftSource = (rank / origMatSLen) * origMatSLen;
+	if (leftDest % origMatSLen == (origMatSLen - 1) || leftDest < 0 ) leftDest = (rank / origMatSLen) * origMatSLen + origMatSLen - 1;
 
 	if (upSource >= size) upSource = rank % origMatSLen;
 	if (upDest < 0) upDest = (origMatSLen * origMatSLen) - origMatSLen + (rank % origMatSLen);
 
-	if (DEBUG && 0) {
+	if (DEBUG  ) {
 		printf("origMatSLen: %d\n", origMatSLen);
+		printf("Processor %d's leftSource = %d\n", rank, leftSource);
+		printf("Processor %d's leftDest = %d\n", rank, leftDest);
 		printf("Processor %d's upsource = %d\n", rank, upSource);
 		printf("Processor %d's updest = %d\n", rank, upDest);
+		//while (1);
 		MPI_Barrier(MPI_COMM_WORLD);
 	}
 
@@ -261,7 +264,7 @@ void part2(int rank, int size) {
 
 		//First, compute the local matrix-matrix product and add it to the product that already exists
 
-		if (DEBUG && DEBUG_RANK == rank && 0) {
+		if (DEBUG && DEBUG_RANK == rank) {
 
 			printf("[BEGIN] Beginning iteration %d...\n", i);
 
