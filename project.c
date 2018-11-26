@@ -317,19 +317,6 @@ void part2(int rank, int size) {
 		}
 	}
 
-	//Take care of the last computation
-	for (j = 0; j < sbSideLen; j++) {
-		for (k = 0; k < sbSideLen; k++) {
-			subBTranspose[j][k] = recvSubBlockB[k][j];
-		}
-	}
-
-	//Do the multiplication
-	for (j = 0; j < sbSideLen; j++) {
-		for (k = 0; k < sbSideLen; k++) {
-			//if (rank != 0) localResultC[j][k] += dot(recvSubBlockA[j], subBTranspose[k], sbSideLen);
-		}
-	}
 	if (DEBUG) {
 		printf("Processor %d's final subblock result C\n", rank);
 		for (i = 0; i < sbSideLen; i++) {
