@@ -4,12 +4,11 @@
 Synopsis: ... */
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/time.h>
 #include <mpi.h>
 #include <math.h>
 #define DEBUG 1
 #define DEBUG_RANK 1
-#define SIZE 4
+#define SIZE 8
 
 
 void part1(); //Serial matrix-matrix multiplication. This part is finished.
@@ -52,13 +51,10 @@ void part1() {
 
 	double entry;
 	double timeElapsed;
+	double t1, t2;
 
 	int i, j;
 
-	struct timeval *t1, *t2;
-
-	t1 = (struct timeval *) malloc( sizeof(struct timeval) );
-	t2 = (struct timeval *) malloc( sizeof(struct timeval) );
 
 	//Generate the two matrices
 	entry = 0.001;
@@ -90,8 +86,7 @@ void part1() {
 		}
 	}
 
-	gettimeofday(t1, NULL);
-
+	t1 = MPI_Wtime();
 	//Get the transpose of matrix B so we don't needlessly regenerate columns for the dot product
 	for (i = 0; i < SIZE; i++) {
 		for (j = 0; j < SIZE; j++) {
@@ -120,17 +115,18 @@ void part1() {
 	}
 
 
-	gettimeofday(t2, NULL);
+	t2 = MPI_Wtime();
 
 	//Display the timing
+	/*
 	timeElapsed = (t2->tv_sec - t1->tv_sec) * 1000.0;
 	timeElapsed += (t2->tv_usec - t1->tv_usec) / 1000.0;
-	timeElapsed /= 1000.0;
+	timeElapsed /= 1000.0; */
+
+	timeElapsed = t2 - t1;
 
 	printf("Time elapsed for serial computation: %lf\n", timeElapsed);
 
-	free(t1);
-	free(t2);
 }
 
 void part2(int rank, int size) {
@@ -223,7 +219,7 @@ void part2(int rank, int size) {
 	} else { //If rank != 0, get the subblocks from rank 0
 		for (i = 0; i < sbSideLen; i++) {
 			MPI_Recv(recvSubBlockA[i], sbSideLen, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-			if (DEBUG && DEBUG_RANK == rank) {
+			if (DEBUG && DEBUG_RANK == rank && 0) {
 				printf("Rank %d got a subblock row\n", rank);
 				for (j = 0; j < sbSideLen; j++) printf("\t%lf", recvSubBlockA[i][j]);
 				printf("\n");
@@ -254,7 +250,7 @@ void part2(int rank, int size) {
 	if (upSource >= size) upSource = rank % origMatSLen;
 	if (upDest < 0) upDest = (origMatSLen * origMatSLen) - origMatSLen + (rank % origMatSLen);
 
-	if (DEBUG) {
+	if (DEBUG && 0) {
 		printf("origMatSLen: %d\n", origMatSLen);
 		printf("Processor %d's upsource = %d\n", rank, upSource);
 		printf("Processor %d's updest = %d\n", rank, upDest);
@@ -265,7 +261,7 @@ void part2(int rank, int size) {
 
 		//First, compute the local matrix-matrix product and add it to the product that already exists
 
-		if (DEBUG && DEBUG_RANK == rank) {
+		if (DEBUG && DEBUG_RANK == rank && 0) {
 
 			printf("[BEGIN] Beginning iteration %d...\n", i);
 
@@ -331,11 +327,11 @@ void part2(int rank, int size) {
 			localResultC[j][k] += dot(recvSubBlockA[j], subBTranspose[k], sbSideLen);
 		}
 	}
-	if (DEBUG && rank == DEBUG_RANK) {
+	if (DEBUG) {
 		printf("Processor %d's final subblock result C\n", rank);
 		for (i = 0; i < sbSideLen; i++) {
 			for (j = 0; j < sbSideLen; j++) {
-				printf("\t%lf", localResultC[i][j]);
+				printf("\t%lf (%d)", localResultC[i][j], rank);
 			}
 			printf("\n");
 		}
