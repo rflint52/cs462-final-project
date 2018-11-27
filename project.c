@@ -7,13 +7,14 @@ Synopsis: ... */
 #include <mpi.h>
 #include <math.h>
 #define DEBUG 1
-#define DEBUG_RANK 1
+#define DEBUG_RANK -1
 #define SIZE 8
 
 
-void part1(); //Serial matrix-matrix multiplication. This part is finished.
-void part2(int rank, int size); //Use parallel algorithm discussed in class (i.e. Lecture 13 & 14 in the OneNote) to do the multiplication
-void part3(int rank, int size); //Use Cannon's algorithm (also in Lecture 13 & 14 in the OneNote) to do the multiplication
+//Return 'double' because returning time required for each
+double part1(); //Serial matrix-matrix multiplication. This part is finished.
+double part2(int rank, int size); //Use parallel algorithm discussed in class (i.e. Lecture 13 & 14 in the OneNote) to do the multiplication
+double part3(int rank, int size); //Use Cannon's algorithm (also in Lecture 13 & 14 in the OneNote) to do the multiplication
 
 
 //Take two arrays of size 'size' and compute the dot product
@@ -41,7 +42,7 @@ int main(int argc, char **argv) {
 	MPI_Finalize();
 }
 
-void part1() {
+double part1() {
 
 	//Serially do matrix-matrix multiplication
 	double matrixA[SIZE][SIZE];
@@ -127,14 +128,19 @@ void part1() {
 
 	printf("Time elapsed for serial computation: %lf\n", timeElapsed);
 
+	return timeElapsed;
+
 }
 
-void part2(int rank, int size) {
+double part2(int rank, int size) {
 	//Use parallel algorithm discussed in class (i.e. Lecture 13 & 14 in the OneNote) to do the multiplication
 	double **blockMatrixA, **blockMatrixB;
 	double **recvSubBlockA, **recvSubBlockB, **localResultC;
 	double **subBTranspose;
-	double ***finalResult; //Array of matrices--There has to be a better way...
+	double ***finalResult; //Array of matrices--You think an array of vectors is nasty, Chris?
+
+	double t1, t2;
+	double timeElapsed;
 
 	//Remember to free all this stuff when done
 
@@ -168,6 +174,9 @@ void part2(int rank, int size) {
 		}
 	}
 
+
+
+	t1 = MPI_Wtime();
 
 	//Generate the entire matrices block by block on rank 0, then split up work as neccessary
 	if (rank == 0) {
@@ -261,6 +270,7 @@ void part2(int rank, int size) {
 	if (upSource >= size) upSource = rank % origMatSLen;
 	if (upDest < 0) upDest = (origMatSLen * origMatSLen) - origMatSLen + (rank % origMatSLen);
 
+#if 0
 	if (DEBUG  ) {
 		printf("origMatSLen: %d\n", origMatSLen);
 		printf("Processor %d's leftSource = %d\n", rank, leftSource);
@@ -270,6 +280,7 @@ void part2(int rank, int size) {
 		//while (1);
 		MPI_Barrier(MPI_COMM_WORLD);
 	}
+#endif
 
 	for (i = 0; i < origMatSLen; i++) {
 
@@ -328,7 +339,7 @@ void part2(int rank, int size) {
 		}
 	}
 
-	if (DEBUG) {
+	if (DEBUG && DEBUG_RANK == rank) {
 		printf("Processor %d's final subblock result C\n", rank);
 		for (i = 0; i < sbSideLen; i++) {
 			for (j = 0; j < sbSideLen; j++) {
@@ -340,6 +351,7 @@ void part2(int rank, int size) {
 
 
 	////////////////////////////////////////////////////////////////////////////////////////////////
+	//MPI_Barrier(MPI_COMM_WORLD);
 
 	//Get everything back on rank 0 at the end
 	if (rank != 0) {
@@ -362,14 +374,37 @@ void part2(int rank, int size) {
 			}
 		}
 
+		t2 = MPI_Wtime();
+
 		//Print out the final result
-		
-	
+
+		if (DEBUG) {
+
+			printf("[Processor 0] Printing the final result matrix...\n\n");
+
+			for (i = 0; i < origMatSLen; i++) {
+				for (j = 0; j < sbSideLen; j++) {
+					for (k = 0; k < origMatSLen; k++) {
+						for (l = 0; l < sbSideLen; l++) {
+							printf("\t%lf", finalResult[i * origMatSLen + k][j][l]);
+						}
+					}
+					printf("\n");
+				}
+			}
+
+		}
+
+		printf("Time elapsed for the simple parallel matrix-matrix multiplication: %lf\n", t2 - t1);
+		return (t2 - t1);
+
 	}
+
+	return -1;
 
 }
 
-void part3(int rank, int size)
+double part3(int rank, int size)
 {
 	int dims[2];
 	int periodic[2];
@@ -483,7 +518,7 @@ void part3(int rank, int size)
 
 	//done now gather
 
-
+	return 12345;
 }
 
 double mult_blocks(double * a, double * b, double * c, int block_length)
