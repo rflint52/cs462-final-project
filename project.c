@@ -25,6 +25,7 @@ double mult_blocks(double * a, double * b, double * c, int block_size);
 int main(int argc, char **argv) {
 
 	int rank, size;
+	double p1, p2, p3;
 	MPI_Init(&argc, &argv);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -34,11 +35,11 @@ int main(int argc, char **argv) {
 		MPI_Abort(MPI_COMM_WORLD, 1);
 	}
 
-	if (rank == 0) part1();
+	if (rank == 0) p1 = part1();
 	MPI_Barrier(MPI_COMM_WORLD);
-	part2(rank, size);
+	p2 = part2(rank, size);
 	MPI_Barrier(MPI_COMM_WORLD);
-	//part3(rank, size);
+	//p3 = part3(rank, size);
 	MPI_Finalize();
 }
 
@@ -349,8 +350,6 @@ double part2(int rank, int size) {
 		}
 	}
 
-
-	////////////////////////////////////////////////////////////////////////////////////////////////
 	//MPI_Barrier(MPI_COMM_WORLD);
 
 	//Get everything back on rank 0 at the end
@@ -396,9 +395,32 @@ double part2(int rank, int size) {
 		}
 
 		printf("Time elapsed for the simple parallel matrix-matrix multiplication: %lf\n", t2 - t1);
+
+		//Free stuff
+		for (i = 0; i < size; i++) {
+			for (j = 0; j < sbSideLen; j++) {
+				free(finalResult[i][j]);
+			}
+			free(finalResult[i]);
+		}
+		free(finalResult);
+
 		return (t2 - t1);
 
 	}
+
+	//Free other stuff
+	for (i = 0; i < sbSideLen; i++) {
+		free(recvSubBlockA[i]);
+		free(recvSubBlockB[i]);
+		free(subBTranspose[i]);
+		free(localResultC[i]);
+	}
+
+	free(recvSubBlockA);
+	free(recvSubBlockB);
+	free(subBTranspose);
+	free(localResultC);
 
 	return -1;
 
