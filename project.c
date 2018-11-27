@@ -121,9 +121,9 @@ double part1() {
 
 	//Display the timing
 	/*
-	timeElapsed = (t2->tv_sec - t1->tv_sec) * 1000.0;
-	timeElapsed += (t2->tv_usec - t1->tv_usec) / 1000.0;
-	timeElapsed /= 1000.0; */
+	   timeElapsed = (t2->tv_sec - t1->tv_sec) * 1000.0;
+	   timeElapsed += (t2->tv_usec - t1->tv_usec) / 1000.0;
+	   timeElapsed /= 1000.0; */
 
 	timeElapsed = t2 - t1;
 
@@ -444,6 +444,7 @@ double part3(int rank, int size)
 	int col;
 	int left, right, up, down;
 	double entry;
+	double ** blocks;
 	double ** mat_a;
 	double ** mat_b;
 	double * a;
@@ -497,6 +498,13 @@ double part3(int rank, int size)
 				MPI_Send(b, block_size, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
 			}
 		}
+		if(DEBUG)
+		{
+			printf("A:\n");
+			print_mat(mat_a, SIZE);
+			printf("B:\n");
+			print_mat(mat_b, SIZE);
+		}
 		for(j = 0; j < sqrt(size); j++)
 		{
 			for(k = 0; k < sqrt(size); k++)
@@ -529,7 +537,7 @@ double part3(int rank, int size)
 
 	mult_blocks(a, b, c, block_length);
 
-	for(i=1;i<partitioned_length;i++)
+	for(i = 1; i < partitioned_length; i++)
 	{
 		MPI_Cart_shift(cart_comm, 1, 1, &left,&right);
 		MPI_Cart_shift(cart_comm, 0, 1, &up,&down);
@@ -540,7 +548,53 @@ double part3(int rank, int size)
 
 	//done now gather
 
+	if(rank == 0)
+	{
+		blocks = malloc(size * sizeof(double*));
+		for(i = 1; i < size; i++)
+		{
+			blocks[i] = malloc(sizeof(double*) * block_size);
+			MPI_Recv(blocks[i], block_size, MPI_DOUBLE, i, 0, MPI_COMM_WORLD, &stat);
+		}
+
+		blocks[0] = c;
+
+		for(i = 0; i < SIZE; i++)
+		{
+			for(j = 0; j < SIZE; j++)
+			{
+				mat_a[i][j] = blocks
+					[i /block_length * partitioned_length + j / block_length]
+					[(i%block_length) * block_length + j % block_length];
+			}
+		}
+
+		if(DEBUG)
+		{
+			printf("C:\n");
+			print_mat(mat_a, SIZE);
+		}
+	}
+	else
+	{
+		MPI_Send(c, block_size, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+	}
+
 	return 12345;
+}
+
+void print_mat(double ** mat, int size)
+{
+	int i;
+	int j;
+	for(i = 0; i < size; i++)
+	{
+		for(j = 0; j < size; j++)
+		{
+			printf("%8.3f ", mat[i][j]);
+		}
+		printf("\n");
+	}
 }
 
 double mult_blocks(double * a, double * b, double * c, int block_length)
