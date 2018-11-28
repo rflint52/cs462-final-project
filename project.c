@@ -10,6 +10,7 @@ Synopsis: ... */
 #define DEBUG 0
 #define DEBUG_RANK -1
 #define SIZE 256
+#define CSV 1
 
 
 //Return 'double' because returning time required for each
@@ -36,11 +37,16 @@ int main(int argc, char **argv) {
 		MPI_Abort(MPI_COMM_WORLD, 1);
 	}
 
+	if(CSV && rank == 0) printf("%d,", size);
+
 	if (rank == 0) p1 = part1();
 	MPI_Barrier(MPI_COMM_WORLD);
 	p2 = part2(rank, size);
 	MPI_Barrier(MPI_COMM_WORLD);
 	p3 = part3(rank, size);
+
+	if(CSV && rank == 0) printf("\n", size);
+
 	MPI_Finalize();
 }
 
@@ -128,7 +134,8 @@ double part1() {
 
 	timeElapsed = t2 - t1;
 
-	printf("Time elapsed for serial computation: %lf\n", timeElapsed);
+	if(!CSV) printf("Time elapsed for serial computation: %lf\n", timeElapsed);
+	else printf("%lf,", timeElapsed);
 
 	return timeElapsed;
 
@@ -395,7 +402,8 @@ double part2(int rank, int size) {
 
 		}
 
-		printf("Time elapsed for the simple parallel matrix-matrix multiplication: %lf\n", t2 - t1);
+		if(!CSV) printf("Time elapsed for the simple parallel matrix-matrix multiplication: %lf\n", t2 - t1);
+		else printf("%lf,", t2 - t1);
 
 		//Free stuff
 		for (i = 0; i < size; i++) {
@@ -594,7 +602,8 @@ double part3(int rank, int size)
 
 		timeElapsed = t2 - t1;
 
-		printf("Time elapsed for cannon's algorithm: %lf\n", timeElapsed);
+		if(!CSV) printf("Time elapsed for cannon's algorithm: %lf\n", timeElapsed);
+		else printf("%lf", timeElapsed);
 
 	}
 	else
