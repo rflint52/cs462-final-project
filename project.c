@@ -7,9 +7,9 @@ Synopsis: ... */
 #include <mpi.h>
 #include <math.h>
 #include <string.h>
-#define DEBUG 1
+#define DEBUG 0
 #define DEBUG_RANK -1
-#define SIZE 16
+#define SIZE 256
 
 
 //Return 'double' because returning time required for each
@@ -446,6 +446,9 @@ double part3(int rank, int size)
 	int col_;
 	int left, right, up, down;
 	double entry;
+	double timeElapsed;
+	double t1;
+	double t2;
 	double ** blocks;
 	double ** mat_a;
 	double ** mat_b;
@@ -491,6 +494,8 @@ double part3(int rank, int size)
 				entry += 0.001;
 			}
 		}
+		t1 = MPI_Wtime();
+		//assemble our thing int blocks and send them out
 		for(i = 1; i < size; i++)
 		{
 			row_ = i / blocks_per_side;
@@ -520,6 +525,7 @@ double part3(int rank, int size)
 	}
 	else
 	{
+		//recieve all our blocks
 		MPI_Recv(a, block_size, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, &stat);
 		MPI_Recv(b, block_size, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, &stat);
 	}
@@ -527,17 +533,10 @@ double part3(int rank, int size)
 	char * buff = malloc(10000);
 	char * b2 = malloc(100);
 
-	sprintf(buff, "Rank %d: ", rank);
-	for(i = 0; i < block_size; i++)
-	{
-		sprintf(b2, "\t%.6f", b[i]);
-		strcat(buff, b2);
-	}
-
-	//printf("%s\n", buff);
-
+	//get our coordinates
 	MPI_Cart_coords(cart_comm, rank, 2, coords);
 
+	//do initial alignment and multiplication
 	MPI_Cart_shift(cart_comm, 1, coords[0], &left, &right);
 	MPI_Cart_shift(cart_comm, 0, coords[1], &up, &down);
 	MPI_Sendrecv_replace(a, block_size, MPI_DOUBLE, left, 11, right, 11, cart_comm, MPI_STATUS_IGNORE);
@@ -545,6 +544,7 @@ double part3(int rank, int size)
 
 	mult_blocks(a, b, c, block_length);
 
+	//do shifting and multiplying
 	for(i = 1; i < blocks_per_side; i++)
 	{
 		MPI_Cart_shift(cart_comm, 1, 1, &left,&right);
@@ -564,10 +564,12 @@ double part3(int rank, int size)
 		{
 			if(i)
 			{
+				//recieve the blocks
 				blocks[i] = malloc(sizeof(double*) * block_size);
 				MPI_Recv(blocks[i], block_size, MPI_DOUBLE, i, 0, MPI_COMM_WORLD, &stat);
 			}
 
+			//assemble into matrix
 			for(j = 0; j < block_length; j++)
 			{
 				for(k = 0; k < block_length; k++)
@@ -581,19 +583,27 @@ double part3(int rank, int size)
 
 		}
 
-
 		if(DEBUG)
 		{
 			printf("C:\n");
 			print_mat(mat_a, SIZE);
 		}
+
+
+		t2 = MPI_Wtime();
+
+		timeElapsed = t2 - t1;
+
+		printf("Time elapsed for cannon's algorithm: %lf\n", timeElapsed);
+
 	}
 	else
 	{
 		MPI_Send(c, block_size, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
 	}
 
-	return 12345;
+
+	return t2 - t1;
 }
 
 void print_mat(double ** mat, int size)
@@ -626,12 +636,6 @@ double mult_blocks(double * a, double * b, double * c, int block_length)
 			}
 		}
 	}
-	//printf("\n");
-	//for(i = 0; i < block_length * block_length; i++)
-	//printf("\t%.6f", c[i]);
-	//printf("\n");
-
-	//fflush(stdout);
 
 }
 
