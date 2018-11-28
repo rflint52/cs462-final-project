@@ -6,9 +6,10 @@ Synopsis: ... */
 #include <stdlib.h>
 #include <mpi.h>
 #include <math.h>
+#include <string.h>
 #define DEBUG 1
 #define DEBUG_RANK -1
-#define SIZE 8
+#define SIZE 16
 
 
 //Return 'double' because returning time required for each
@@ -39,7 +40,7 @@ int main(int argc, char **argv) {
 	MPI_Barrier(MPI_COMM_WORLD);
 	p2 = part2(rank, size);
 	MPI_Barrier(MPI_COMM_WORLD);
-	//p3 = part3(rank, size);
+	p3 = part3(rank, size);
 	MPI_Finalize();
 }
 
@@ -426,6 +427,7 @@ double part2(int rank, int size) {
 
 }
 
+void print_mat(double ** mat, int size);
 double part3(int rank, int size)
 {
 	int dims[2];
@@ -434,14 +436,14 @@ double part3(int rank, int size)
 	int i;
 	int k;
 	int j;
-	int x;
-	int y;
 	int block_size;
 	int num_blocks;
 	int block_length;
-	int partitioned_length;
+	int blocks_per_side;
 	int row;
 	int col;
+	int row_;
+	int col_;
 	int left, right, up, down;
 	double entry;
 	double ** blocks;
@@ -457,11 +459,20 @@ double part3(int rank, int size)
 
 	block_size = SIZE * SIZE / size;
 	block_length = sqrt(block_size);
-	partitioned_length = sqrt(size);
+	blocks_per_side = sqrt(size);
 
 	a = malloc(sizeof(double) * block_size);
 	b = malloc(sizeof(double) * block_size);
-	c = malloc(sizeof(double) * block_size);
+	c = calloc(sizeof(double),  block_size);
+
+	dims[0] = blocks_per_side;
+	dims[1] = blocks_per_side;
+	periodic[0] = 1;
+	periodic[1] = 1;
+
+	MPI_Cart_create(MPI_COMM_WORLD, 2, dims, periodic, 1, &cart_comm);
+	//get our rank and cvoordinates
+	MPI_Comm_rank(cart_comm, &rank);
 
 	if(rank == 0)
 	{
@@ -482,14 +493,14 @@ double part3(int rank, int size)
 		}
 		for(i = 1; i < size; i++)
 		{
-			x = i / partitioned_length;
-			y = i % partitioned_length;
-			for(j = 0; j < partitioned_length; j++)
+			row_ = i / blocks_per_side;
+			col_ = i % blocks_per_side;
+			for(j = 0; j < block_length; j++)
 			{
-				for(k = 0; k < sqrt(size); k++)
+				for(k = 0; k < block_length; k++)
 				{
-					a[j * partitioned_length + k] = mat_a[x * block_length + j][y*block_length + k];
-					b[j * partitioned_length + k] = mat_b[x * block_length + j][y*block_length + k];
+					a[j * block_length + k] = mat_a[row_ * block_length + j][col_ * block_length + k];
+					b[j * block_length + k] = mat_b[row_ * block_length + j][col_ * block_length + k];
 				}
 			}
 			if(i != 0)
@@ -498,19 +509,12 @@ double part3(int rank, int size)
 				MPI_Send(b, block_size, MPI_DOUBLE, i, 0, MPI_COMM_WORLD);
 			}
 		}
-		if(DEBUG)
+		for(j = 0; j < block_length; j++)
 		{
-			printf("A:\n");
-			print_mat(mat_a, SIZE);
-			printf("B:\n");
-			print_mat(mat_b, SIZE);
-		}
-		for(j = 0; j < sqrt(size); j++)
-		{
-			for(k = 0; k < sqrt(size); k++)
+			for(k = 0; k < block_length; k++)
 			{
-				a[j * partitioned_length + k] = mat_a[j][k];
-				b[j * partitioned_length + k] = mat_b[j][k];
+				a[j * block_length + k] = mat_a[j][k];
+				b[j * block_length + k] = mat_b[j][k];
 			}
 		}
 	}
@@ -520,14 +524,18 @@ double part3(int rank, int size)
 		MPI_Recv(b, block_size, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD, &stat);
 	}
 
-	dims[0] = partitioned_length;
-	dims[1] = partitioned_length;
-	periodic[0] = 1;
-	periodic[1] = 1;
+	char * buff = malloc(10000);
+	char * b2 = malloc(100);
 
-	MPI_Cart_create(MPI_COMM_WORLD, 2, dims, periodic, 1, &cart_comm);
-	//get our rank and cvoordinates
-	MPI_Comm_rank(cart_comm, &rank);
+	sprintf(buff, "Rank %d: ", rank);
+	for(i = 0; i < block_size; i++)
+	{
+		sprintf(b2, "\t%.6f", b[i]);
+		strcat(buff, b2);
+	}
+
+	//printf("%s\n", buff);
+
 	MPI_Cart_coords(cart_comm, rank, 2, coords);
 
 	MPI_Cart_shift(cart_comm, 1, coords[0], &left, &right);
@@ -537,7 +545,7 @@ double part3(int rank, int size)
 
 	mult_blocks(a, b, c, block_length);
 
-	for(i = 1; i < partitioned_length; i++)
+	for(i = 1; i < blocks_per_side; i++)
 	{
 		MPI_Cart_shift(cart_comm, 1, 1, &left,&right);
 		MPI_Cart_shift(cart_comm, 0, 1, &up,&down);
@@ -551,23 +559,28 @@ double part3(int rank, int size)
 	if(rank == 0)
 	{
 		blocks = malloc(size * sizeof(double*));
-		for(i = 1; i < size; i++)
-		{
-			blocks[i] = malloc(sizeof(double*) * block_size);
-			MPI_Recv(blocks[i], block_size, MPI_DOUBLE, i, 0, MPI_COMM_WORLD, &stat);
-		}
-
 		blocks[0] = c;
-
-		for(i = 0; i < SIZE; i++)
+		for(i = 0; i < size; i++)
 		{
-			for(j = 0; j < SIZE; j++)
+			if(i)
 			{
-				mat_a[i][j] = blocks
-					[i /block_length * partitioned_length + j / block_length]
-					[(i%block_length) * block_length + j % block_length];
+				blocks[i] = malloc(sizeof(double*) * block_size);
+				MPI_Recv(blocks[i], block_size, MPI_DOUBLE, i, 0, MPI_COMM_WORLD, &stat);
 			}
+
+			for(j = 0; j < block_length; j++)
+			{
+				for(k = 0; k < block_length; k++)
+				{
+					row_ = (i / blocks_per_side) * block_length;
+					col_ = (i % blocks_per_side) * block_length;
+					mat_a[row_ + j][col_ + k] = blocks[i][j * block_length + k];
+				}
+			}
+
+
 		}
+
 
 		if(DEBUG)
 		{
@@ -591,7 +604,7 @@ void print_mat(double ** mat, int size)
 	{
 		for(j = 0; j < size; j++)
 		{
-			printf("%8.3f ", mat[i][j]);
+			printf("\t%.6f ", mat[i][j]);
 		}
 		printf("\n");
 	}
@@ -613,6 +626,13 @@ double mult_blocks(double * a, double * b, double * c, int block_length)
 			}
 		}
 	}
+	//printf("\n");
+	//for(i = 0; i < block_length * block_length; i++)
+	//printf("\t%.6f", c[i]);
+	//printf("\n");
+
+	//fflush(stdout);
+
 }
 
 double dot(double a[], double b[], int size) {
