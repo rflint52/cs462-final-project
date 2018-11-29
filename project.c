@@ -1,7 +1,10 @@
 /* Authors: Ryan Flint, Chris Dean
    COSC 462 Final Project
 
-Synopsis: ... */
+Synopsis: This project revolves around parallel matrix multiplication algorithms. There are three parts:
+ * Part 1 - Serial matrix multiplication
+ * Part 2 - Simple parallel algorithm
+ * Part 3 - Cannon's algorithm */
 #include <stdio.h>
 #include <stdlib.h>
 #include <mpi.h>
