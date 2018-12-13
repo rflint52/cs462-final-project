@@ -26,6 +26,7 @@ double part3(int rank, int size); //Use Cannon's algorithm (also in Lecture 13 &
 double dot(double a[], double b[], int size);
 //Take two blocks and multiply them and add their result to c
 double mult_blocks(double * a, double * b, double * c, int block_size);
+double result[SIZE][SIZE];
 
 int main(int argc, char **argv) {
 
@@ -59,7 +60,6 @@ double part1() {
 	double matrixA[SIZE][SIZE];
 	double matrixB[SIZE][SIZE];
 	double matrixBTranspose[SIZE][SIZE];
-	double result[SIZE][SIZE];
 
 	double entry;
 	double timeElapsed;
@@ -67,15 +67,14 @@ double part1() {
 
 	int i, j;
 
-
 	//Generate the two matrices
 	entry = 0.001;
 	for (i = 0; i < SIZE; i++) {
 		for (j = 0; j < SIZE; j++) {
+			while(entry * 2 > .95) entry -= 1;
 			matrixA[i][j] = entry;
 			matrixB[i][j] = entry * 2.0;
 			entry += 0.001;
-			if(entry * 2 > .95) entry = -0.4;
 		}
 	}
 	if (DEBUG) {
@@ -151,6 +150,8 @@ double part2(int rank, int size) {
 	double **recvSubBlockA, **recvSubBlockB, **localResultC;
 	double **subBTranspose;
 	double ***finalResult; //Array of matrices--You think an array of vectors is nasty, Chris?
+	double matrixB[SIZE][SIZE];
+	double matrixA[SIZE][SIZE];
 
 	double t1, t2;
 	double timeElapsed;
@@ -187,6 +188,16 @@ double part2(int rank, int size) {
 		}
 	}
 
+	entry = 0.001;
+	for (i = 0; i < SIZE; i++) {
+		for (j = 0; j < SIZE; j++) {
+			while(entry * 2 > .95) entry -= 1;
+			matrixA[i][j] = entry;
+			matrixB[i][j] = entry * 2.0;
+			entry += 0.001;
+		}
+	}
+
 
 
 	t1 = MPI_Wtime();
@@ -211,13 +222,13 @@ double part2(int rank, int size) {
 				for (k = 0; k < sbSideLen; k++) {
 
 					for (l = 0; l < sbSideLen; l++) {
-						blockMatrixA[k][l] = entry;
-						blockMatrixB[k][l] = entry * 2.0;
+						blockMatrixA[k][l] = matrixA[i*sbSideLen+k][j*sbSideLen+l];
+						blockMatrixB[k][l] = matrixA[i*sbSideLen+k][j*sbSideLen+l];//ntry * 2.0;
 
 						//Set up rank 0's sub-block
 						if ( (i * origMatSLen + j) == 0 ) {
-							recvSubBlockA[k][l] = entry;
-							recvSubBlockB[k][l] = entry * 2.0;
+							recvSubBlockA[k][l] = matrixA[i*sbSideLen+k][j*sbSideLen+l];//ntry;
+							recvSubBlockB[k][l] = matrixB[i*sbSideLen+k][j*sbSideLen+l];//ntry;entry * 2.0;
 						}
 
 						entry += 0.001;
@@ -388,21 +399,28 @@ double part2(int rank, int size) {
 		t2 = MPI_Wtime();
 
 		//Print out the final result
-
 		if (DEBUG) {
 
 			printf("[Processor 0] Printing the final result matrix...\n\n");
 
-			for (i = 0; i < origMatSLen; i++) {
-				for (j = 0; j < sbSideLen; j++) {
-					for (k = 0; k < origMatSLen; k++) {
-						for (l = 0; l < sbSideLen; l++) {
-							printf("\t%lf", finalResult[i * origMatSLen + k][j][l]);
-						}
-					}
-					printf("\n");
+			for(i = 0; i < SIZE; i++)
+			{
+				for(j = 0; j < size; j++)
+				{
+					printf("\t%lf", result[i][j]);
 				}
 			}
+
+			//for (i = 0; i < origMatSLen; i++) {
+			//for (j = 0; j < sbSideLen; j++) {
+			//for (k = 0; k < origMatSLen; k++) {
+			//for (l = 0; l < sbSideLen; l++) {
+			//printf("\t%lf", finalResult[i * origMatSLen + k][j][l]);
+			//}
+			//}
+			//printf("\n");
+			//}
+			//}
 
 		}
 
@@ -501,10 +519,10 @@ double part3(int rank, int size)
 			mat_a[i] = malloc(sizeof(double) * SIZE);
 			mat_b[i] = malloc(sizeof(double) * SIZE);
 			for (j = 0; j < SIZE; j++) {
+				while(entry * 2 > .95) entry -= 1;
 				mat_a[i][j] = entry;
 				mat_b[i][j] = entry * 2.0;
 				entry += 0.001;
-				if(entry * 2 > .95) entry = -0.4;
 			}
 		}
 		t1 = MPI_Wtime();
