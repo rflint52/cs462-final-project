@@ -10,10 +10,10 @@ Synopsis: This project revolves around parallel matrix multiplication algorithms
 #include <mpi.h>
 #include <math.h>
 #include <string.h>
-#define DEBUG 0
+#define DEBUG 1
 #define DEBUG_RANK -1
 #define SIZE 256
-#define CSV 1
+#define CSV 0
 
 
 //Return 'double' because returning time required for each
@@ -75,6 +75,7 @@ double part1() {
 			matrixA[i][j] = entry;
 			matrixB[i][j] = entry * 2.0;
 			entry += 0.001;
+			if(entry * 2 > .95) entry = -0.4;
 		}
 	}
 	if (DEBUG) {
@@ -503,6 +504,7 @@ double part3(int rank, int size)
 				mat_a[i][j] = entry;
 				mat_b[i][j] = entry * 2.0;
 				entry += 0.001;
+				if(entry * 2 > .95) entry = -0.4;
 			}
 		}
 		t1 = MPI_Wtime();

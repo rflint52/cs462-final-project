@@ -3,10 +3,10 @@ MPIFLAGS = -lm
 EXECUTABLES = project
 
 .SUFFIXES: .c.o
-	$(CC) $(MPIFLAGS) -c $^
+	$(CC) $(MPIFLAGS) -c $^ 
 
 project: project.o
-	$(CC) $(MPIFLAGS) -o $@ $^
+	$(CC) $(MPIFLAGS) -o $@ $^ -DDEBUG=1
 
 .PHONY: clean
 clean:
