@@ -143,6 +143,10 @@ double part1() {
 	return timeElapsed;
 
 }
+double matrix_deref(double *** resu1t, int origMatSLen, int i, int j, int k, int l)
+{
+	return result[i*origMatSLen+k][j*origMatSLen+l];
+}
 
 double part2(int rank, int size) {
 	//Use parallel algorithm discussed in class (i.e. Lecture 13 & 14 in the OneNote) to do the multiplication
@@ -390,9 +394,16 @@ double part2(int rank, int size) {
 		}
 
 		//Get the blocks from the other ranks
+		int temp = sbSideLen;
 		for (i = 1; i < size; i++) {
-			for (j = 0; j < sbSideLen; j++) {
+			for (j = 0, temp = 0; j < sbSideLen; j++) {
 				MPI_Recv(finalResult[i][j], sbSideLen, MPI_DOUBLE, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+				for (k = 0; k < temp; k++) {
+					for (l = 0; l < sbSideLen; l++) {
+						result[i*sbSideLen+k][j*sbSideLen+l] =
+							matrix_deref(finalResult, sbSideLen, i, j, k, l);
+					}
+				}
 			}
 		}
 
