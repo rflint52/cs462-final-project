@@ -416,23 +416,12 @@ double part2(int rank, int size) {
 
 			for(i = 0; i < SIZE; i++)
 			{
-				for(j = 0; j < size; j++)
+				for(j = 0; j < SIZE; j++)
 				{
 					printf("\t%lf", result[i][j]);
 				}
+				printf("\n");
 			}
-
-			//for (i = 0; i < origMatSLen; i++) {
-			//for (j = 0; j < sbSideLen; j++) {
-			//for (k = 0; k < origMatSLen; k++) {
-			//for (l = 0; l < sbSideLen; l++) {
-			//printf("\t%lf", finalResult[i * origMatSLen + k][j][l]);
-			//}
-			//}
-			//printf("\n");
-			//}
-			//}
-
 		}
 
 		if(!CSV) printf("Time elapsed for the simple parallel matrix-matrix multiplication: %lf\n", t2 - t1);
