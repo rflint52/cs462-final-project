@@ -170,6 +170,7 @@ double part2(int rank, int size) {
 
 	int leftSource, leftDest;
 	int upSource, upDest;
+	int sbSideLength;
 
 	recvSubBlockA = (double **) malloc( sizeof(double *) * sbSideLen);
 	recvSubBlockB = (double **) malloc( sizeof(double *) * sbSideLen);
@@ -208,6 +209,7 @@ double part2(int rank, int size) {
 
 	//Generate the entire matrices block by block on rank 0, then split up work as neccessary
 	if (rank == 0) {
+		sbSideLength = 0;
 		blockMatrixA = (double **) malloc(sizeof(double *) * sbSideLen);
 		blockMatrixB = (double **) malloc(sizeof(double *) * sbSideLen);
 
@@ -394,11 +396,10 @@ double part2(int rank, int size) {
 		}
 
 		//Get the blocks from the other ranks
-		int temp = sbSideLen;
 		for (i = 1; i < size; i++) {
-			for (j = 0, temp = 0; j < sbSideLen; j++) {
+			for (j = 0; j < sbSideLen; j++) {
 				MPI_Recv(finalResult[i][j], sbSideLen, MPI_DOUBLE, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-				for (k = 0; k < temp; k++) {
+				for (k = 0; k < sbSideLength; k++) {
 					for (l = 0; l < sbSideLen; l++) {
 						result[i*sbSideLen+k][j*sbSideLen+l] =
 							matrix_deref(finalResult, sbSideLen, i, j, k, l);
